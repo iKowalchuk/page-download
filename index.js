@@ -16,9 +16,7 @@ exports.parseStringAsJsonObject = (json) => {
 }
 
 exports.loadPageAsStringAsync = (downloadOptions) => {
-    if (!downloadOptions.timeout) {
-        downloadOptions.timeout = 30
-    }
+    if (!downloadOptions.timeout) { downloadOptions.timeout = 30 }
 
     var options = {}
 
@@ -38,7 +36,7 @@ exports.loadPageAsStringAsync = (downloadOptions) => {
         options.path = parsedUrl.path
     }
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         http.get(options,
             (res) => {
                 var body = ''
@@ -55,10 +53,19 @@ exports.loadPageAsStringAsync = (downloadOptions) => {
 
                 res.resume()
             }).on('error', err => {
-                resolve({ r: undefined, e: err.message })
+                if (downloadOptions.rejectOnError) {
+                    reject(err.message)
+                } else {
+                    resolve({ r: undefined, e: err.message })                    
+                }
             }).setTimeout(downloadOptions.timeout * 1000, function () {
                 this.abort()
-                resolve({ r: undefined, e: `Timedout (${downloadOptions.timeout} sec)` })
+                var message = `Timedout (${downloadOptions.timeout} sec)`
+                if (downloadOptions.rejectOnError) {
+                    reject(message)
+                } else {
+                    resolve({ r: undefined, e: message })
+                }    
             })
     })
 }

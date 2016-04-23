@@ -4,5 +4,7 @@
     "description" : "_",
     "repository": { },
     "license": "UNLICENSED",    
-    "dependencies": { }
+    "dependencies": { 
+        "encoding": "0.1.12"
+    }
 }

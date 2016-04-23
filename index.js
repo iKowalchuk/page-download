@@ -2,6 +2,7 @@
 
 var http = require('http')
 var urlM = require('url')
+var encoding = require("encoding")
 
 exports.parseStringAsJsonObject = (json) => {
     var object
@@ -43,7 +44,9 @@ exports.loadPageAsStringAsync = (downloadOptions) => {
 
                 res.on('data', chunk => {
                     res.resume()
-                    body += chunk
+                    body += res.headers['content-type'].toLowerCase().indexOf('charset=cp1251') > -1
+                        ? new Buffer(encoding.convert(chunk, "UTF-8", "CP1251")).toString()
+                        : chunk
                 })
 
                 res.on('end', () => {

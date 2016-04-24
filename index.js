@@ -45,7 +45,7 @@ exports.loadPageAsStringAsync = (downloadOptions) => {
                 res.on('data', chunk => {
                     res.resume()
                     body += res.headers['content-type'] ? res.headers['content-type'].toLowerCase().indexOf('charset=cp1251') > -1
-                        ? new Buffer(encoding.convert(chunk, "UTF-8", "CP1251")).toString() : chunk
+                        ? new Buffer(encoding.convert(chunk, "UTF-8", "CP1251")).toString()
                         : chunk
                 })
 

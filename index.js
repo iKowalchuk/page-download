@@ -1,12 +1,13 @@
 'use strict'
 
 var http = require('http')
+var https = require('https')
 var urlM = require('url')
 var encoding = require("encoding")
 
 exports.parseStringAsJsonObject = (json) => {
     var object
-    
+
     try {
         object = JSON.parse(json.toString())
     } catch (err) {
@@ -27,31 +28,32 @@ exports.loadPageAsStringAsync = (downloadOptions) => {
         }
     }
 
+    var parsedUrl = urlM.parse(downloadOptions.url)
     if (downloadOptions.proxyIp && downloadOptions.proxyPort) {
         options.host = downloadOptions.proxyIp
         options.port = downloadOptions.proxyPort
         options.path = downloadOptions.url
+        options.headers = downloadOptions.headers
     } else {
-        var parsedUrl = urlM.parse(downloadOptions.url)
-        options.host = parsedUrl.host
+        options.host = parsedUrl.hostname
+        options.port = parsedUrl.port
         options.path = parsedUrl.path
     }
 
     return new Promise((resolve, reject) => {
-        http.get(options,
+        var httpModule = parsedUrl.protocol === "https:" ? https : http
+        httpModule.get(options,
             (res) => {
-                var body = ''
+                var body = []
 
                 res.on('data', chunk => {
                     res.resume()
-                    body += res.headers['content-type'].toLowerCase().indexOf('charset=cp1251') > -1
-                        ? new Buffer(encoding.convert(chunk, "UTF-8", "CP1251")).toString()
-                        : chunk
+                    body.push(chunk)
                 })
 
                 res.on('end', () => {
                     res.resume()
-                    resolve({ r: body.toString(), e: undefined })
+                    resolve({ r: Buffer.concat(body).toString(), e: undefined })
                 })
 
                 res.resume()
@@ -59,7 +61,7 @@ exports.loadPageAsStringAsync = (downloadOptions) => {
                 if (downloadOptions.rejectOnError) {
                     reject(err.message)
                 } else {
-                    resolve({ r: undefined, e: err.message })                    
+                    resolve({ r: undefined, e: err.message })
                 }
             }).setTimeout(downloadOptions.timeout * 1000, function () {
                 this.abort()
@@ -68,7 +70,7 @@ exports.loadPageAsStringAsync = (downloadOptions) => {
                     reject(message)
                 } else {
                     resolve({ r: undefined, e: message })
-                }    
+                }
             })
     })
 }

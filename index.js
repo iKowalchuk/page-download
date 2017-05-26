@@ -1,18 +1,17 @@
 'use strict'
 
-const http = require('http')
-const https = require('https')
-const httpsProxyAgent = require('https-proxy-agent')
-const urlM = require('url')
-const log = require('logging')
+var http = require('http')
+var https = require('https')
+var urlM = require('url')
+var encoding = require("encoding")
 
 exports.parseStringAsJsonObject = (json) => {
-    let object
+    var object
 
     try {
         object = JSON.parse(json.toString())
     } catch (err) {
-        log.warn(`ERROR parseStringAsJsonObject() ${err.message}`)
+        console.log(`ERROR parseStringAsJsonObject() ${err.message}`)
     }
 
     return object
@@ -21,47 +20,20 @@ exports.parseStringAsJsonObject = (json) => {
 exports.loadPageAsStringAsync = (downloadOptions) => {
     if (!downloadOptions.timeout) { downloadOptions.timeout = 30 }
 
-    const options = {}
-
-    if (downloadOptions.method) {
-        options.method = downloadOptions.method
-    }
-
-    if (downloadOptions.headers) {
-        options.headers = downloadOptions.headers
-    }
+    var options = {}
 
     if (downloadOptions.gBot) {
-        if (!options.headers) { options.headers = {} }
-
-        options.headers['User-Agent'] = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+        options.headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+        }
     }
 
-    const parsedUrl = urlM.parse(downloadOptions.url)
+    var parsedUrl = urlM.parse(downloadOptions.url)
     if (downloadOptions.proxyIp && downloadOptions.proxyPort) {
-        if (parsedUrl.protocol === 'https:') {
-            const proxy = urlM.parse(`http://${downloadOptions.proxyIp}:${downloadOptions.proxyPort}`)
-            if (downloadOptions.proxyUser && downloadOptions.proxyPass) {
-                proxy.auth = `${downloadOptions.proxyUser}:${downloadOptions.proxyPass}`
-            }
-            const agent = new httpsProxyAgent(proxy)
-
-            options.host = parsedUrl.hostname
-            options.port = parsedUrl.port
-            options.path = parsedUrl.path
-            options.agent = agent
-        } else {
-            if (downloadOptions.proxyUser && downloadOptions.proxyPass) {
-                if (!options.headers) { options.headers = {} }
-                
-                options.headers['Proxy-Authorization'] = `Basic ${new Buffer(`${downloadOptions.proxyUser}:${downloadOptions.proxyPass}`).toString("base64")}`
-                options.headers['Host'] = parsedUrl.host
-            }
-
-            options.host = downloadOptions.proxyIp
-            options.port = downloadOptions.proxyPort
-            options.path = downloadOptions.url
-        }
+        options.host = downloadOptions.proxyIp
+        options.port = downloadOptions.proxyPort
+        options.path = downloadOptions.url
+        options.headers = downloadOptions.headers
     } else {
         options.host = parsedUrl.hostname
         options.port = parsedUrl.port
@@ -69,10 +41,10 @@ exports.loadPageAsStringAsync = (downloadOptions) => {
     }
 
     return new Promise((resolve, reject) => {
-        const httpModule = parsedUrl.protocol === 'https:' ? https : http
-        const req = httpModule.request(options,
+        var httpModule = parsedUrl.protocol === "https:" ? https : http
+        httpModule.get(options,
             (res) => {
-                const body = []
+                var body = []
 
                 res.on('data', chunk => {
                     res.resume()
@@ -81,29 +53,24 @@ exports.loadPageAsStringAsync = (downloadOptions) => {
 
                 res.on('end', () => {
                     res.resume()
-                    resolve({ r: Buffer.concat(body).toString(), rb: Buffer.concat(body), s: res.statusCode, e: undefined, h: res.headers })
+                    resolve({ r: Buffer.concat(body).toString(), e: undefined })
                 })
 
                 res.resume()
             }).on('error', err => {
                 if (downloadOptions.rejectOnError) {
-                    reject(err)
+                    reject(err.message)
                 } else {
-                    resolve({ r: undefined, e: err })
+                    resolve({ r: undefined, e: err.message })
                 }
             }).setTimeout(downloadOptions.timeout * 1000, function () {
                 this.abort()
-                const err = new Error(`Timedout (${downloadOptions.timeout} sec)`)
+                var message = `Timedout (${downloadOptions.timeout} sec)`
                 if (downloadOptions.rejectOnError) {
-                    reject(err)
+                    reject(message)
                 } else {
-                    resolve({ r: undefined, e: err })
+                    resolve({ r: undefined, e: message })
                 }
             })
-        if (downloadOptions.body) {
-            req.write(downloadOptions.body)
-        }
-
-        req.end()
     })
 }
